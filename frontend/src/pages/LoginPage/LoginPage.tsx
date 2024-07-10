@@ -1,18 +1,47 @@
-
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  
+  const loginMutation = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Something went wrong');
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    },
+    onError: (error: Error) => {
+      setError(error.message || 'Login failed. Please check your credentials and try again.');
+    },
+  });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null); // Reset lỗi trước khi thực hiện đăng nhập
+    loginMutation.mutate({ email, password });
+  };
 
-    console.log('Email:', email);
-    console.log('Password:', password);
-  }
   return (
-<div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-800">Login</h2>
         <form className="space-y-6" onSubmit={handleLogin}>
@@ -61,6 +90,7 @@ export const LoginPage = () => {
               </a>
             </div>
           </div>
+          {error && <div className="text-red-500 text-sm">{error}</div>}
           <div>
             <button
               type="submit"
@@ -70,7 +100,15 @@ export const LoginPage = () => {
             </button>
           </div>
         </form>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};

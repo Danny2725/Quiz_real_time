@@ -1,4 +1,5 @@
-import path from "path";
+import { Server } from "socket.io";
+import http from "http";
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -18,17 +19,33 @@ cloudinary.config({
 });
 
 const app = express();
-const PORT = process.env.PORT || 5001;
-const __dirname = path.resolve();
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(express.json({ limit: "5mb" })); // to parse req.body
-// limit shouldn't be too high to prevent DOS
-app.use(express.urlencoded({ extended: true })); // to parse form data(urlencoded)
-
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizrooms", quizRoomRoutes);
+
+io.on("connection", (socket) => {
+  console.log("a user connected");
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room: ${roomId}`);
+  });
+
+  socket.on("startRoom", (roomId) => {
+    io.to(roomId).emit("roomStarted", { roomId });
+    console.log(`Room started: ${roomId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected");
+  });
+});
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "/frontend/dist")));
@@ -38,7 +55,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+server.listen(process.env.PORT || 5001, () => {
+  console.log(`Server is running on port ${process.env.PORT || 5001}`);
   connectMongoDB();
 });
