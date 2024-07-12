@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema(
     participatedQuizzes: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Quiz",
+        ref: "QuizRoom",
         default: [],
       },
     ],
